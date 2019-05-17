@@ -1,0 +1,308 @@
+---
+layout: post
+title:  "Meetup"
+date:   2019-04-30 18:26:00 -0700
+categories: elixir
+---
+
+## Introduction
+
+This is a step-by-step solution for the exercism.io problem ‘Meetup’ which can be seen [here](https://exercism.io/my/solutions/ac5366bdb77c44c195eddcea4d92c60a) (you need to be signed-in).
+
+## Problem
+
+Calculate the date of meetups.
+
+Typically meetups happen on the same day of the week. In this exercise, you will take a description of a meetup date, and return the actual meetup date.
+
+Examples of general descriptions are:
+
+* The first Monday of January 2017
+* The third Tuesday of January 2017
+* The wednesteenth of January 2017
+* The last Thursday of January 2017
+
+The descriptors you are expected to parse are: first, second, third, fourth, fifth, last, monteenth, tuesteenth, wednesteenth, thursteenth, friteenth, saturteenth, sunteenth
+
+Note that "monteenth", "tuesteenth", etc are all made up words. There was a meetup whose members realized that there are exactly 7 numbered days in a month that end in '-teenth'. Therefore, one is guaranteed that each day of the week (Monday, Tuesday, ...) will have exactly one date that is named with '-teenth' in every month.
+
+Given examples of a meetup dates, each containing a month, day, year, and descriptor calculate the date of the actual meetup. For example, if given "The first Monday of January 2017", the correct meetup date is 2017/1/2.
+
+## Solution
+
+The problem may seem complex because of its lengthy description and large number of test cases, but it can be solved by taking apart the information we're given into smaller parts through a step-by-step approach. Elixir, being a functional and declarative language, works very well for this approach.
+
+Let us take a look at the tests to get more details about the inputs given and expected output.
+
+Inputs given:
+
+1. Year (4-digit)
+2. Month (1-digit or 2-digit)
+3. Day of the Week (atoms for weekdays such as :monday, :tuesday etc.)
+4. Schedule (first (1st week), second (2nd week) ... teenth (seven days ending with teenth e.g. 13th))
+
+Expected output:
+
+A tuple with {yyyy, mm, dd}
+
+### Steps
+
+If we look at the problem closely, we can see that we need to find out a date of meetup based on day of the week and a schedule. The schedule is based on a seven-day range. So first we need to find out seven-day range and dates within that range. Once we find out the dates, we can find out the days of the week for those dates. Lastly we can pick up the date that matches the requested day of the week to find the answer.
+
+High level code with steps looks like this
+
+```elixir
+find_day_range(year, month, schedule)
+|> find_date(year, month, weekday)
+```
+
+#### Step 1 - Find the seven-day range
+
+Seven-day range is based on schedule, year, and month. Dates in the range are either fixed or varying.
+
+##### Fixed days range
+
+Dates within first, second, third, and fourth week are fixed e.g. first week is from 1st of the month to 7th of the month, second week is from 8th of the month to 14th of the month and so on. Similarly ‘teenth’ schedule has fixed dates - from 13th of the month to 19th of the month (and that makes 7 days or a week). So we can define fix range as following:
+
+```elixir
+@day_range_map %{
+  first: 1..7,
+  second: 8..14,
+  third: 15..21,
+  fourth: 22..28,
+  teenth: 13..19
+}
+
+name: day_range_map
+type: map
+key: schedule
+value: day range
+```
+
+##### Varying days range
+
+Dates within last week’ s schedules will be varying and depend upon month and year. For months January, March, May, July, August, October, and December we have 31 days and for all other months other that February we have 30 days. For February we can have 29 days for leap year and 28 days for non-leap years. Therefore we also need to consider the year while calculating last week for February. With all the above conditions we have last week that contains following ranges of dates.
+
+```elixir
+22 23 24 25 26 27 28            # For month with 28 days
+   23 24 25 26 27 28 29         # For month with 29 days
+      24 25 26 27 28 29 30      # For month with 30 days
+         25 26 27 28 29 30 31   # For month with 31 days
+```
+
+So dates for last week fall in range of 22 and 31 depending upon month and year. We can find the number of days using given month and year. Number of days is same as last day of the month. We will be using Erlang function :calendar.last_day_of_the_month/2 to find out last day of the month. Range will be between last day of the month and six days prior to that day.
+
+##### Function for finding the range
+
+In this function we compare the schedule. If the schedule is anything other than ‘:last’, we find the range using day_range_map. For ‘:last’ schedule we calculate range as explained above in ‘Varying days range’.
+
+```elixir
+Function name: find_day_range
+
+Function input: year, month, schedule
+
+Function body:
+
+case schedule do
+  :last ->
+    last_day_of_the_month = :calendar.last_day_of_the_month(year, month)
+    (last_day_of_the_month - 6)..last_day_of_the_month
+
+  _ ->
+    @day_range_map[schedule]
+end
+
+
+Function output: range
+```
+
+Alternatively we can use Elixir function Date.days_in_month/1 to calculate number of days in a month. The function requires date as a parameter, We can use Date.from_erl!/1 function to get the date which returns Date sigil e.g. ~D[2019-01-13]. Date.from_erl!/1 function needs {year, month, day} tuple as parameter. We already have year and month. We will use 1 (1st of the month) as a day.
+
+```elixir
+date = Date.from_erl!({year, month, 1})
+Date.days_in_month(date)
+```
+
+#### Step 2 - Find date
+
+##### Find the day of week for all dates within the range in step 1
+
+Now given a range, year, and month we want to find out weekdays for each of the day in the range. Range has seven consecutive days, so we will have unique weekday for each of the day in the range.
+
+We need to create the dictionary with mapping %{ day_of_week_number => {year, month, day}}
+
+Let us find out how we get the day of the week if we know the date. In Elixir the day of the week is numbered 1 to 7 from Monday to Sunday. Therefore Monday is 1 and Sunday is 7. For example if year is 2019 and month is 1, the day of the week for January 13, 2019 is 7(Sunday), January 14, 2019 is 1 (Monday) and so on.
+
+Let us see how we find out day of the week for January 13, 2019. We will use IEx to get started.
+
+Using Erlang function :calendar.day_of_the_week/3
+
+```elixir
+iex(1)> :calendar.day_of_the_week(2019, 1, 13)
+7
+```
+
+Now we can find day of week for each element of the range. We can use Enum.reduce/3 function to reduce the range to the map of %{ day_of_week_number => {year, month, day}}.
+
+```elixir
+iex(1)> year = 2019
+2019
+iex(2)> month = 1
+1
+iex(3)> range = 13..19
+13..19
+iex(4)> range |>
+...(4)> Enum.reduce(%{}, fn day, acc ->
+...(4)> Map.put(acc, :calendar.day_of_the_week(year, month, day), {year, month, day})
+...(4)> end)
+%{
+  1 => {2019, 1, 14},
+  2 => {2019, 1, 15},
+  3 => {2019, 1, 16},
+  4 => {2019, 1, 17},
+  5 => {2019, 1, 18},
+  6 => {2019, 1, 19},
+  7 => {2019, 1, 13}
+}
+
+Note: the map is ordered by day of week.
+```
+
+Alternatively we can use Elixir function Date.day_of_week/1 to find day of the week. This function expects Date sigil as an argument e.g. ~D[2019-01-13]. We have three pieces of information - year, month, and day. Therefore we will create the Sigil first. Elixir Date.new/3 will create the sigil based on year, month, and day.
+
+```elixir
+iex(1)> Date.from_erl!({2019, 1, 13})
+~D[2019-01-13]
+```
+
+Now we can find the day of the week
+
+```elixir
+iex(2)> Date.from_erl!({2019, 1, 13}) |> Date.day_of_week()
+7
+```
+
+Day of the week on January 13, 2019 was Sunday. So the expected answer is 7.
+
+##### Match the weekday parameter with the day of week map
+
+Since we know weekday, we will find out the matching weekday in the above range
+
+The date for the matching weekday is the answer.
+
+Now we need to find out the map entry based on what was the weekday requested in input. If we are looking for Sunday, then we need to find the value of key 7. What we are given is an atom for the weekday e.g. :sunday. We need to map that to number 7. To achieve that we can create following Map:
+
+```elixir
+@weekday_map %{
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+  saturday: 6,
+  sunday: 7
+}
+
+name: weekday_map
+type: map
+key: weekday
+value: weekday in number
+```
+
+We can use above map to fetch the value from the map created above.
+
+```elixir
+Map.fetch!(@weekday_map[weekday])
+```
+
+So the completed function looks like below:
+
+```elixir
+Function input: range, year, month, weekday
+
+Function body:
+
+range
+|> Enum.reduce(%{}, fn day, acc ->
+  Map.put(acc, :calendar.day_of_the_week(year, month, day), {year, month, day})
+end)
+|> Map.fetch!(@weekday_map[weekday])
+
+Function output: {year, month, day}
+```
+
+Alternate Elixir code to get day of week using Date.day_of_week/1:
+
+```elixir
+Map.put(acc, Date.day_of_week(Date.from_erl!({year, month, day})), {year, month, day})
+```
+
+We can also use Enum.find/2 instead of Map.fetch! If we decide to do so we can create list of tuples and find the matching date for the weekday.
+
+```elixir
+Function input: range, year, month, weekday
+
+Function body:
+
+range
+|> Enum.map(fn day ->
+  {:calendar.day_of_the_week(year, month, day), {year, month, day}}
+end)
+|> Enum.find(fn {x, dt} -> x == @weekday_map[weekday] end)
+
+Function output: {year, month, day}
+```
+
+Alternate Elixir code to get day of week using Date.day_of_week/1:
+
+```elixir
+{Date.day_of_week(Date.from_erl!({year, month, day})), {year, month, day}}
+```
+
+### Final code
+
+```elixir
+@weekday_map %{
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+  saturday: 6,
+  sunday: 7
+}
+
+@day_range_map %{
+  first: 1..7,
+  second: 8..14,
+  third: 15..21,
+  fourth: 22..28,
+  teenth: 13..19
+}
+
+def meetup(year, month, weekday, schedule) do
+  find_day_range(year, month, schedule)
+  |> find_date(year, month, weekday)
+end
+
+defp find_day_range(year, month, schedule) do
+  case schedule do
+    :last ->
+      last_day_of_the_month = :calendar.last_day_of_the_month(year, month)
+      (last_day_of_the_month - 6)..last_day_of_the_month
+
+    _ ->
+      @day_range_map[schedule]
+  end
+end
+
+defp find_date(range, year, month, weekday) do
+  range
+  |> Enum.reduce(%{}, fn day, acc ->
+    Map.put(acc, :calendar.day_of_the_week(year, month, day), {year, month, day})
+  end)
+  |> Map.fetch!(@weekday_map[weekday])
+end
+```
+
+<!-- Docs to Markdown version 1.0β17 -->
