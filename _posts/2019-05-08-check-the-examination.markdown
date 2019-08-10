@@ -3,6 +3,7 @@ layout: post
 title:  "Check the Examination"
 date:   2019-05-08 14:26:00 -0700
 categories: elixir
+tags: elixir
 ---
 
 ## Introduction
