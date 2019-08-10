@@ -80,21 +80,25 @@ defp compare([], acc), do: acc
 defp compare([head | tail], acc) do
   compare(tail, score(head, acc))
 end
-
-defp score({_expected, answer}, acc) when answer == "", do: acc
-defp score({expected, answer}, acc) when expected == answer, do: acc + 4
-defp score({expected, answer}, acc) when expected != answer, do: acc - 1
   ```
 
-In the above code, we have created two functions to walk through the combined list. They both are private functions which we will call from our main function.
+In the above code, we have created two compare/2 functions to walk through the combined list. They both are private functions which we will call from our main function.
 
-These functions accept two parameters. The first one is a tuple in the form of _{expected_answer, answer}_ which is an element of the combined list we built earlier. The second parameter is an accumulator, _acc_, with which we accumulate the results of our comparisions.
+These functions accept two parameters. The first one is the combined list we built earlier. The second parameter is an accumulator, _acc_, with which we accumulate the results of our comparisions.
 
 These functions allow us to walk through the list __recursively__ and, at the same time, accumulate the result of each of the comparisions.
 
 The first function is a 'stop' condition for our recurssion. When we reach the end of the list, we stop and return the score. Note that, as the second function calls itself as the last thing, it is a _tail call_ and Elixir/Erlang will accordingly perform tail-call optimization.
 
-The next three private score/2 functions are called from compare/2. They allow us to compare the expected answer with the actual answer. They allow us branching of conditional logical using multiclause functions.
+```elixir
+defp score({_expected, answer}, acc) when answer == "", do: acc
+defp score({expected, answer}, acc) when expected == answer, do: acc + 4
+defp score({expected, answer}, acc) when expected != answer, do: acc - 1
+  ```
+
+Next we created three private score/2 functions which are called from compare/2. They allow us to compare the expected answer with the actual answer. They allow us branching of conditional logic using multiclause functions.
+
+These functions accept two parameters. The first one is a tuple in the form of _{expected_answer, answer}_ which is an element of the combined list we built earlier. The second parameter is an accumulator, _acc_, with which we accumulate the results of our comparisions.
 
 We could have used conditional constructs such as if, case, and cond etc. in the compare/2 function. However, by using multiclause functions, the logic for handling the conditions is seperated from the higher level (calling) function. The code for conditions is cleaner and self-descriptive.
 
@@ -113,7 +117,7 @@ With this approach, we use the Elixir [Enum.reduce/3][ered3] module to walk thro
 2. accumulator (to store the result of reduction)
 3. function (to compare the answers)
 
-The accumulator will start with 0 (as per our manual Step 1). We will use the score/2 function to calculate the score. The score/2 function will get two parameters - a tuple for comparision and the accumulator.
+The accumulator will start with 0 (as per our manual Step 1). We will use the score/2 functions (as discussed in the earlier approach) to calculate the score. The score/2 function will get two parameters - a tuple for comparision and the accumulator.
 
 ### Report final score
 
